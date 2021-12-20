@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta charset="utf-8">
+    <title>Game</title>
+    <!--link rel="stylesheet" href="style.css"-->
+    <style>
+
+body {
+    font-family: sans-serif ;
+    line-height: 110% ;
+}
+
+#main {
+    max-width: 800px ;
+    background-color: lightblue ;
+    margin: auto ;
+    padding: 20px ;
+}
+
+.choice {
+    font-weight: bold ;
+}
+
+.outcome,
+.rational {
+    display: none ;
+}
+
+.round {
+    min-height: 80px ;
+    margin: 20px ;
+    background-color: white ;
+    padding: 20px ;
+    line-height: 1.5;
+}
+
+.round[data-choice] .action {
+    display: none ;
+}
+
+.choice,
+.chance {
+    display: none ;
+}
+
+.round[data-choice="1"] .choice[data-choice="1"],
+.round[data-choice="2"] .choice[data-choice="2"] {
+    display: block ;
+}
+
+.round.show-results[data-choice="1"][data-correct="1"] .outcome[data-choice="1"][data-correct="1"],
+.round.show-results[data-choice="2"][data-correct="2"] .outcome[data-choice="2"][data-correct="1"] {
+    display: block ;
+}
+
+.round.show-results[data-choice="1"][data-correct="2"] .outcome[data-choice="1"][data-correct="0"],
+.round.show-results[data-choice="2"][data-correct="1"] .outcome[data-choice="2"][data-correct="0"] {
+    display: block ;
+}
+
+.round.show-results[data-rational="2"][data-correct="1"] .rational[data-choice="2"],
+.round.show-results[data-rational="1"][data-correct="2"] .rational[data-choice="1"] {
+    display: block ;
+}
+
+.round.show-results .chance {
+    display: block ;
+}
+
+.emoji {
+    font-size: 200% ;
+}
+
+    </style>
+    <script>
+function ready(fn) {
+  if (document.readyState != 'loading'){
+    fn();
+  } else {
+    document.addEventListener('DOMContentLoaded', fn);
+  }
+}
+
+ready(function() {
+    let scenarios = [
+        {   // scenario 1
+            text: "Cheryl has tested positive for a condition that will make her very sick. If Cheryl has the condition, and receives treatment, it will prevent her from becoming sick. However, it's possible that the test result is a false-positive, and that Cheryl doesn't really have the condition. If Cheryl receives treatment when she doesn't have the condition, the treatment will make her sick.",
+            brText: 'It turns out that {}% of people have the condition',
+            faText: 'The test always correctly diagnoses people with the condition, however it does mis-diagnose people without the condition {}% of the time',
+            br: parseInt(Math.random() * 100),
+            fa: parseInt(Math.random() * 100),
+            prob: 0,
+            correct: 1,
+            rational: 2,
+            action1: "Treat Cheryl",
+            action2: "Discharge Cheryl (Don't Treat)",
+            action1past: "You treated Cheryl",
+            action2past: "You discharged Cheryl",
+            action1correct: "Cheryl had the condition",
+            action2correct: "Cheryl did not have the conditon",
+            action1incorrect: "and she became very sick",
+            action2incorrect: "and she became very sick",
+            action1rational: "that she <strong>had</strong> the condition",
+            action2rational: "that she <strong>did not</strong> have the condition",
+            probText: "that Cheryl had the condition",
+        },
+        {   // scenario 2
+            text: "Robert was suspected of being a Russian spy, and subjected to a lie detector test. The lie detector reported that Robert was indeed a Russian spy. Robert should be imprisoned if he is a Russian spy, however, it's possible that the lie detector is wrong, Robert is innocent, and should be set free. Imprisoning an innocent man is pretty bad, but so is setting free a Russian spy.",
+            faText: 'The lie detector always catches spies, however it falsely diagnoses innocent people as spies {}% of the time',
+            brText: 'It turns out that {}% of people are Russian spies',
+            br: parseInt(Math.random() * 100),
+            fa: parseInt(Math.random() * 100),
+            prob: 0,
+            correct: 2,
+            rational: 2,
+            action1: "Imprison Robert",
+            action2: "Release Robert",
+            action1past: "You imprisoned Robert",
+            action2past: "You released Robert",
+            action1correct: "Robert was a spy",
+            action2correct: "Robert was not a spy",
+            action1incorrect: "but he was actually innocent",
+            action2incorrect: "and he sent important secrets to the Russians",
+            action1rational: "that he <strong>was</strong> a spy",
+            action2rational: "that he <strong>was not</strong> a spy",
+            probText: "that Robert was a spy",
+        },
+        {   // scenario 3
+            text: "Performing brain surgery requires long periods of intense concentration, and surgeons must pass a drug test before beginning surgery. Gary the brain surgeon tested positive for marijuana, a substance known to impair a surgeon's ability. However, it's possible that the test is wrong, and that Gary is not under the influence of marijuana.",
+            faText: "The test always catches drug use, however when administered to people who haven't used drugs, the drug test provides a false positive result {}% of the time.",
+            brText: "It turns out that {}% of brain surgeons turn up to surgery stoned",
+            br: parseInt(Math.random() * 100),
+            fa: parseInt(Math.random() * 100),
+            prob: 0,
+            correct: 1,
+            rational: 1,
+            action1: "Send Gary Home",
+            action2: "Allow Gary to Perform Surgery",
+            action1past: "You sent Gary home",
+            action2past: "You allowed Gary to perform surgery",
+            action1correct: "Gary was completely stoned",
+            action2correct: "Gary was not under the influence",
+            action1incorrect: "but he was actually not under the influence",
+            action2incorrect: "but he was completely stoned",
+            action1rational: "that he <strong>was</strong> stoned",
+            action2rational: "that he <strong>was not</strong> stoned",
+            probText: "that Gary was stoned",
+        },
+        {   // scenario 4
+            text: "El-nino are weather patterns that can lead to flooding across Australia, where as La-nina produces reduced rainfall. It's the end of the year, and it has not flooded all year. You're arguing with a friend about whether it's an El-nino, or La-nina year.",
+            faText: "It never floods during La-nina years, however {}% of El-nino years don't experience flooding either.",
+            brText: "It turns out that {}% of years are La-nina years",
+            br: parseInt(Math.random() * 100),
+            fa: parseInt(Math.random() * 100),
+            prob: 0,
+            correct: 1,
+            rational: 1,
+            action1: "Argue it's La-Nina", // assume situation is True Positive
+            action2: "Argue it's El-Nino", // assume situation is False Alarm
+            action1past: "You argued it's an La-Nina year",
+            action2past: "You argued it's an El-Nino year",
+            action1correct: "It was an La-Nina year",
+            action2correct: "It was a El-Nino year",
+            action1incorrect: "but it was a El-Nino year",
+            action2incorrect: "but it was an La-Nina year",
+            action1rational: "that it was an La-Nina year",
+            action2rational: "that it was a El-Nino year",
+            probText: "that is was an La-Nina year",            
+        },
+        {   // scenario 5
+            text: "Fabio is an incredibly attractive man. Unfortunately, a lifetime of being admired by everyone he knows has left Fabio without a well developed emotional skillset for handling rejection, and he is terrified of it. But, he is also equally terrified of missing out on a romantic dinner opportunities. In an effort to never have one of his dinner invitations rejected, but also minimize missed opportunities for good conversation, Fabio commissions some engineers to build for him an Artificial Intelligence, speech and facial-expression analyser to gauge women's interest in a given potential dinner partner. The engineers dub their device, Eros.<br> Eros has told Fabio that a women he planned to ask to dinner is not interested. With tears streaming down his well chiselled jaw, Fabio comes to you for advice on how to proceed. Fabio's sadness makes the world a darker place, so you want to help him make the right choice.",
+            faText: "If Eros says a woman is interested, then she definitely is. However, if Eros says that a women is <em>not</em> interested, there is a {}% chance he is wrong.",
+            brText: "Studies have shown that only {}% of all women would say no to having dinner with Fabio",
+            br: parseInt(Math.random() * 100),
+            fa: parseInt(Math.random() * 100),
+            prob: 0,
+            correct: 1,
+            rational: 1,
+            action2: "Tell Fabio not to ask the woman out, and console him.",
+            action1: "Assure Fabio that he should ask the woman to dinner",
+            action2past: "You told Fabio to stay home and watch a movie.",
+            action1past: "You told Fabio to ask the woman to dinner",
+            action2correct: "It turns out that the woman doesn’t like emotionally immature men. She is not interested",
+            action1correct: "Fabio has a wonderful dinner with the woman",
+            action2incorrect: "but the woman was interested.",
+            action1incorrect: "and Fabio was rejected",
+            action2rational: "that she <strong>was not </strong> interested",
+            action1rational: "that she <strong>was</strong> interested",
+            probText: "that the woman was interested",
+		},
+        {   // scenario 6
+            text: "You are visiting the campus of a university with a strong humanities focus. However, there are some computer science students there and they are the only non-humanities students. Surprisingly, all of these computer science students present stereotypically. \nYou need to ask someone about writing computer code, but you really don't want to talk to anyone you don't have to. You would rather figure the problem out yourself than risk asking the wrong person. You see a student wearing glasses, a video game T-shirt, and a backpack with a Google logo. She is discussing tech companies with a friend.",
+            faText: "{}% of humanities students at this university fit this description too",
+            brText: "{}% of the students at this university are computer science students",
+            br: parseInt(Math.random() * 100),
+            fa: parseInt(Math.random() * 100),
+            prob: 0,
+            correct: 1,
+            rational: 1,
+            action1: "Ask the student about computer code",
+            action2: "Keep your head down and don't make eye contact",
+            action1past: "You asked the student your question",
+            action2past: "You hurried along and avoided social interaction",
+            action1correct: "You got help with your coding problem",
+            action2correct: "You avoided an unnecessary awkward social interaction",
+            action1incorrect: "You got stuck in a conversation and now you've agreed to perform at a slam poetry night even though you've never written or performed poetry",
+            action2incorrect: "The student was akin to a young Ada Lovelace, and she was in an extra helpful mood",
+            action1rational: "that she <strong>was</strong> a computer science student",
+            action2rational: "that she <strong>was not</strong> a computer science student",
+            probText: "that the student was a computer science student",
+		},
+        {   // scenario 7
+            text: "There was a hit-and-run incident involving a cab in a city. Some cabs in this city are blue, and some are green. In court, a witness said the cab was blue, but an expert has told the court that the witness might have mistaken a green cab for a blue one. You are on the jury in this case",
+            faText: "Studies show that, in lighting conditions that match those in which the witness saw the cab, {}% of green cabs were said to be blue. In the same conditions, blue cabs were always identified correctly as being blue.", // false alarm rate and explanation
+            brText: "{}% of the cabs in this city are blue",
+            br: parseInt(Math.random() * 100),
+            fa: parseInt(Math.random() * 100),
+            prob: 0,
+            correct: 1,
+            rational: 1,
+            action1: "Believe the cab was blue",
+            action2: "Believe the cab was green",
+            action1past: "You are more suspicious of defendants who drive blue cabs than you previously were",
+            action2past: "You are more suspicious of defendants who drive green cabs than you previously were",
+            action1correct: "The offending cab was blue",
+            action2correct: "The offending cab was green",
+            action1incorrect: "The offending cab was not blue",
+            action2incorrect: "The offending cab was not green",
+            action1rational: "that the cab <strong>was</strong> blue",
+            action2rational: "that the cab <strong>was</strong> green",
+            probText: "that the cab was blue",
+		},
+        {   // scenario 8
+            text: "You are bored in lockdown, so you use a pregnancy test on your male guinea pig. To your surprise, he tests positive. Having paid attention at school, you know that males do not get pregnant. However, you wonder if the sex of the guinea pig has been incorrectly identified. The pregnancy test is guaranteed to give a positive result if the guinea pig is in fact pregnant (and therefore also female).",
+            faText: "The pregnancy test's false alarm rate is shown on its packaging as {}%. You assume this figure is the same regardless of the gender being tested.",
+            brText: "For a female guinea pig in a situation similar to yours, prior to the positive test result, you calculate that the probability of it being pregnant, <em>and</em> previously being mis-identified as male to be {}%",
+            br: parseInt(Math.random() * 100),
+            fa: parseInt(Math.random() * 100),
+            prob: 0,
+            correct: 1,
+            rational: 1,
+            action1: "Prepare to have more guinea pigs", // assume TP
+            action2: "Ignore positive result", // assume FP
+            action1past: "You start shopping for a bigger guinea pig enclosure",
+            action2past: "You ignored the result",
+            action1correct: "The guinea pig eventually has babies",
+            action2correct: "Time passes and no further signs of pregnancy appear",
+            action1incorrect: "but shopping for a bigger enclosure was wasted time",
+            action2incorrect: "and you are not prepared for the pregnancy. You must sacrifice some of your clothes to make a nest for your guinea pig",
+            action1rational: "that your guinea pig <strong>was</strong> pregnant", // However it was actually more likely
+            action2rational: "that your guinea pig <strong>was not</strong> pregnant", // However it was actually more likely
+            probText: "that the pregnancy test was correct", // there was a <x>% chance ...
+		},
+        {   // scenario 9
+            text: "You met someone at a party in Hobart this month. Strangely, this person spent 8 months of last year baking sourdough everyday, tending house plants, and hardly leaving his house. You know that literally everyone in Melbourne last year did this, but it is also possible that this person is not from Melbourne and was just really into bread and ferns. You don't have time to find out for sure, but you must have a guess to keep the conversation going",
+            faText: "You figure {}% of the people at the party did this last year despite not being in Melbourne",
+            brText: "The host of the party tells you that {}% of people at the party were in Melbourne for lockdown last year. You have no reason to believe you would be any more, or less, likely to unknowingly talk to someone from Melbourne compared to talking to someone else.",
+            br: parseInt(Math.random() * 100),
+            fa: parseInt(Math.random() * 100),
+            prob: 0,
+            correct: 1,
+            rational: 1,
+            action1: "Assume the person was in Melbourne",
+            action2: "Assume the person was not in Melbourne",
+            action1past: "You assume the person was in Melbourne",
+            action2past: "You assume the person was not in Melbourne",
+            action1correct: "The conversation moves on to AFL and bad weather",
+            action2correct: "You have a great chat about variegated monsteras and baking techniques",
+            action1incorrect: "but your conversation partner looks slightly offended that you assume only someone in lockdown would do that",
+            action2incorrect: "but your conversation partner is actually from Melbourne. She starts to detail how great that is and all the reasons why Melbourne is better than wherever you're from",
+            action1rational: "that she <strong>was</strong> was in Melbourne for lockdown last year",
+            action2rational: "that she <strong>was not</strong> in Melbourne for lockdown last year",
+            probText: "that the person you met was in Melbourne for lockdown last year",
+		},
+        {   // scenario 10
+            text: "One night after binge watching The X-Files, you witness a bright light dancing across the sky in the most unusual pattern you have ever seen. The next morning there are intricate crop circles discovered about the area you saw the strange light. The thought crosses your mind that maybe conspicuous extra-terrestrial aliens might have visited and made crop circles crosses last night. The truth of the matter is important to you. If aliens are out there, you would like to begin working towards making contact with them.",
+            faText: "Through your own prior knowledge and reports from sources you trust, you determine there is {}% chance these events can be explained by non-alien causes.", // false alarm rate and explanation
+            brText: "You determine that, on any given night, there is a {}% chance that extra-terrestrial aliens will visit and make noticeable crop circles. You believe that ETs love making crop circles, therefore whenever, and wherever, they visit, they will make them", // base rate and explanation
+            br: parseInt(Math.random() * 100),
+            fa: parseInt(Math.random() * 100),
+            prob: 0,
+            correct: 1,
+            rational: 1,
+            action1: "Believe that it was aliens and begin working towards making contact.", // assume TP
+            action2: "Believe it was something other than aliens", // assume FP
+            action1past: "You join a local astronomy group",
+            action2past: "You continue life as normal",
+            action1correct: "After decades of work you finally make contact with aliens",
+            action2correct: "With the time you saved on not trying to contact aliens you managed to watch all seasons of The X-Files",
+            action1incorrect: "but you do not find any further evidence of extra-terrestrial interaction with Earth",
+            action2incorrect: "but decades later, a group of 'believers' make first contact and are given a tour of the inter-galactic neighbourhood.",
+            action1rational: "that there <strong>were</strong> aliens", // However it was actually more likely
+            action2rational: "that there <strong>were not</strong> any aliens", // However it was actually more likely
+            probText: "that it was aliens based on your assumptions and available information", // there was a <x>% chance ...
+		}
+    ];
+
+    let runif = function(lower, upper) {
+        let diff = upper-lower;
+        return Math.random() * diff + lower;
+    }
+
+    let makeState = function(pegnh){
+        let minBR;
+        let maxBR;
+
+        let likelyNegative = true;
+
+        // roll for posterior class; likely-Positve or likely-Negative
+        die_value = runif(0,100);
+        if(die_value >80) { // the posterior will be P(H|E)>0.5 i.e, *likely-Positive*
+                            // minBR will be set according to FAR
+            likelyNegative = false;
+            // set the minimum possible base rate
+            minBR = pegnh/(pegnh + 1) * 1.01; // multiply to ensure posterior is always strictly greater than 0.5
+
+            maxBR = Math.max(minBR, 0.98)
+
+        } else { // the posterior will be P(H|E)<0.5 i.e, *likely-Negative*
+                // maxBR will be set according to FAR
+
+            likelyNegative = true;
+            // set the maximum possible base rate
+            maxBR = pegnh/(pegnh + 1) * 0.99; // multiply to ensure posterior is always strictly less than 0.5
+
+            minBR = Math.min(0.001,maxBR);
+        }
+
+        // Generate base rate, P(H)
+        let ph = parseFloat(runif(minBR, maxBR).toPrecision(2));
+
+        // calculate P(E), assumming miss-rate is zero
+        let pe = parseFloat((ph + (1-ph)*pegnh).toPrecision(2));
+
+        // calculate posterior
+        let phge = parseFloat((ph / (pe)).toPrecision(3));
+
+        return [ph, phge];
+
+    }
+
+    for (let scenario of scenarios) {
+        MIN_FALSE_ALARM_RATE = 0.01
+        MAX_FALSE_ALARM_RATE = 0.2
+
+        // generate a false alarm rate, P(E|~H)
+        let pegnh = parseFloat(runif(MIN_FALSE_ALARM_RATE, MAX_FALSE_ALARM_RATE).toPrecision(2));
+
+        a = makeState(pegnh);
+        let ph = a[0];
+        let phge = a[1];
+
+        while((phge<0.001 || phge>0.99) || (phge>0.49 && phge<0.51)){
+            a = makeState(pegnh);
+            ph = a[0];
+            phge = a[1];
+        }
+        
+
+        scenario.br = ph;
+        scenario.fa = pegnh;
+        scenario.prob = phge;
+        scenario.correct = (phge > Math.random()) ? 1 : 2;
+        scenario.rational = (phge > 0.5) ? 1 : 2;
+    }
+
+    let rounds = document.querySelectorAll('.round');
+    for (let i = 0; i < rounds.length && i < scenarios.length; i++) {
+        let round = rounds[i];
+        let scenario = scenarios[i];
+
+        round.dataset.correct = scenario.correct;
+        round.dataset.rational = scenario.rational;
+
+        let content = `
+        <p>${ scenario.text }</p>
+        <p>${ scenario.faText.replace('{}', '<strong>' + (100 * scenario.fa).toPrecision(2) + '</strong>') }</p>
+        <p>${ scenario.brText.replace('{}', '<strong>' + (100 * scenario.br).toPrecision(2) + '</strong>') }</p>
+        <button class="action" data-choice="1" data-scenario="${ i }">${ scenario.action1 }</button>
+        <button class="action" data-choice="2" data-scenario="${ i }">${ scenario.action2 }</button>
+        <p class="choice" data-choice="1">${ scenario.action1past }</p>
+        <p class="choice" data-choice="2">${ scenario.action2past }</p>
+        <p class="outcome" data-choice="1" data-correct="1"><span class="emoji">👍</span> ${ scenario.action1correct }</p>
+        <p class="outcome" data-choice="2" data-correct="1"><span class="emoji">👍</span> ${ scenario.action2correct }</p>
+        <p class="outcome" data-choice="1" data-correct="0"><span class="emoji">😞</span> ${ scenario.action1incorrect }</p>
+        <p class="outcome" data-choice="2" data-correct="0"><span class="emoji">😞</span> ${ scenario.action2incorrect }</p>
+        <p class="rational" data-choice="1"><span class="emoji">🤔</span> However it was actually more likely ${ scenario.action1rational }</p>
+        <p class="rational" data-choice="2"><span class="emoji">🤔</span> However it was actually more likely ${ scenario.action2rational }</p>
+        <p class="chance"><span class="emoji">🧮</span> There was a <strong>${ (100 * scenario.prob).toPrecision(2) }%</strong> chance that ${ scenario.probText }</p>
+        `;
+
+        round.innerHTML = content;
+    }
+
+    let nAnswered = 0;
+
+    let actionHandler = function(event) {
+        let button = event.target;
+        let scenarioNo = parseInt(button.dataset.scenario);
+        let choice = parseInt(button.dataset.choice);
+        rounds[scenarioNo].dataset.choice = choice;
+        nAnswered++;
+        if (nAnswered === rounds.length)
+            showAnswers()
+    };
+
+    let showAnswers = function() {
+        for (let round of rounds)
+            round.classList.add('show-results');
+    };
+
+    let actions = document.querySelectorAll('.action');
+    for (let action of actions)
+        action.addEventListener('click', actionHandler);
+
+});
+
+    </script>
+</head>
+<body>
+    <div id="main">
+        <h1>Base Foul</h1>
+        <div class="round"></div>
+        <div class="round"></div>
+        <div class="round"></div>
+        <div class="round"></div>
+        <div class="round"></div>
+        <div class="round"></div>
+        <div class="round"></div>
+        <div class="round"></div>
+        <div class="round"></div>
+        <div class="round"></div>
+    </div>
+
+
+</body></html>

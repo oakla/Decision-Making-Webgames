@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta charset="utf-8">
+    <title>Game</title>
+    <!--link rel="stylesheet" href="style.css"-->
+    <style>
+
+body {
+    font-family: sans-serif ;
+    line-height: 120% ;
+}
+
+.scenario {
+    max-width: 800px ;
+    background-color: lightblue ;
+    margin: auto ;
+    padding: 20px ;
+    margin-bottom: 50px ;
+}
+
+tr > th:first-child {
+    text-align: left ;
+}
+
+td {
+    text-align: center ;
+}
+
+div.trial {
+    margin: 30px ;
+}
+
+.trial {
+    font-size: 200% ;
+}
+
+button {
+    font-size: 100% ;
+}
+
+    </style>
+</head>
+<body>
+    <div id="scenario-1" class="scenario">
+        <h1>Triage 3</h1>
+            <p>{{ text }}</p>
+            <p>{{ faText }}</p>
+            <p>{{ brText }}</p>
+
+            <div class="trial">
+            <table>
+                <tbody>
+                    <tr><th>Patient</th><th>{{ currentPatient + 1 }}</th></tr>
+                    <tr><th>Status</th><td>{{ testIcon[currentPatient] }}</td><th>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th><td><button v-on:click="chooseNeg">👁 Observe</button> or <button v-on:click="choosePos">💉 Treat</button></td></tr>
+                    <tr><th>Condition</th><td>❓</td></tr>
+                </tbody>
+            </table>
+            </div>
+            <table>
+                <tbody>
+                    <tr>
+                        <th>Patient</th>
+                        <th v-for="trial in trials">
+                          {{ trial.patient + 1 }}
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Status</th>
+                        <th v-for="trial in trials">
+                          {{ testIcon[trial.patient] }}
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Your decision</th>
+                        <th v-for="trial in trials">
+                          {{ decisionIcon[trial.patient] }}
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Bayes decision</th>
+                        <th v-for="trial in trials">
+                          {{ bayesIcon[trial.patient] }}
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Truth</th>
+                        <th v-for="trial in trials">
+                          {{ truthIcon[trial.patient] }}
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>You</th>
+                        <th v-for="trial in trials">
+                          {{ correctIcon[trial.patient] }}
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Bayes</th>
+                        <th v-for="trial in trials">
+                          {{ bayesCorrectIcon[trial.patient] }}
+                        </th>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="scenario-2" class="scenario">
+        <h1>Triage 4</h1>
+            <p>{{ text }}</p>
+            <p>{{ faText }}</p>
+            <p>{{ brText }}</p>
+
+            <div class="trial">
+            <table>
+                <tbody>
+                    <tr><th>Patient</th><th>{{ currentPatient + 1 }}</th></tr>
+                    <tr><th>Status</th><td>{{ testIcon[currentPatient] }}</td><th>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th><td><button v-on:click="chooseNeg">🧪 Test</button> or <button v-on:click="choosePos">💉 Treat</button></td></tr>
+                    <tr><th>Condition</th><td>❓</td></tr>
+                </tbody>
+            </table>
+            </div>
+            <table>
+                <tbody>
+                    <tr>
+                        <th>Patient</th>
+                        <th v-for="trial in trials">
+                          {{ trial.patient + 1 }}
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Status</th>
+                        <th v-for="trial in trials">
+                          {{ testIcon[trial.patient] }}
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Your decision</th>
+                        <th v-for="trial in trials">
+                          {{ decisionIcon[trial.patient] }}
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Bayes decision</th>
+                        <th v-for="trial in trials">
+                          {{ bayesIcon[trial.patient] }}
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Truth</th>
+                        <th v-for="trial in trials">
+                          {{ truthIcon[trial.patient] }}
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>You</th>
+                        <th v-for="trial in trials">
+                          {{ correctIcon[trial.patient] }}
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Bayes</th>
+                        <th v-for="trial in trials">
+                          {{ bayesCorrectIcon[trial.patient] }}
+                        </th>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</body>
+<script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+<script>
+
+// Alex's code starts here
+let laplaceModifier_x = 1;
+let laplaceModifier_i = 2;
+
+let MIN_BR = 0.2;
+let MAX_BR = 0.4;
+
+let HIT_RATE = 1;
+
+let gameState = {
+    // population
+    trueBR: 0,
+    // test accuracy
+    far: 0,
+}
+
+let bayesObs = {
+    nObserved: 0,
+    nSick: 0,
+}
+
+let getPosteriorOdds = function() {
+    if(Math.random() > .5){
+        return Math.random() * 0.1 + .8; // posterior odds will be between 0.8 and 0.9
+    } else {
+        return Math.random() * 0.15 + 1.1; // posterior odds will be between 1.1 and 1.25
+    }
+}
+
+let getTrueBaseRate = function(){
+    return Math.random() * (MAX_BR - MIN_BR) + MIN_BR;
+}
+
+let initGameState = function(){
+    let posteriorOdds = getPosteriorOdds();
+    let br = getTrueBaseRate()
+
+    let far = HIT_RATE * (br/(1-br))/posteriorOdds;
+
+    gameState.trueBR = parseFloat(br.toPrecision(2));
+    gameState.far = parseFloat(far.toPrecision(2));
+}
+
+let getPatientStatus = function(){
+    return (Math.random() > gameState.trueBR ? 'neg' : 'pos');
+}
+
+let getTestResult = function(truth){
+    if(truth == 'pos'){
+        return (Math.random() > HIT_RATE ? 'neg' : 'pos');
+    }
+    if(truth == 'neg'){
+        return (Math.random() > gameState.far ? 'neg' : 'pos');
+    }
+}
+
+let getBREstimate = function(){
+    return (bayesObs.nSick + laplaceModifier_x)/(bayesObs.nObserved + laplaceModifier_i);
+}
+
+let getBayesDecision = function(testResult){
+    if(testResult == 'neg'){
+        return 'neg' // assumes hit_rate = 1
+    } else {
+        let brEstimate = getBREstimate();
+        let posterior = (brEstimate/(1 - brEstimate)) * (HIT_RATE/gameState.far)
+        return ((posterior > 1) ? 'pos' : 'neg');
+    }
+}
+
+initGameState();
+
+let trials = new Array(30);
+
+for (let i = 0; i < trials.length; i++) {
+    let t = getPatientStatus();
+    let t2 = getTestResult(t);
+
+    trials[i] = {
+        patient: i,
+        truth: t,
+        test: t2,
+
+        decision: 'unknown',
+
+        bayes: getBayesDecision(t2),
+    };
+
+    bayesObs.nObserved++;
+    if(trials[i].truth == 'pos') bayesObs.nSick++;
+
+}
+// end code
+
+let app = new Vue({
+    el: '#scenario-1',
+    data: {
+        currentPatient: 0,
+        text: "You are running a hospital, and a number of patients have begun to come down with an illness. Symptoms of the illness are throwing up (🤮), and patients throwing up are suspected of having the illness. Fortunately, a treatment (💉) for the illness is available, which prevents them from becoming sick. However, it is a hospital after all, and patients may be throwing up for completely unrelated reasons. Treating patients who do not have the illness will lead them to become sick. You must choose to either treat (💉) the patients, or keep them for observation (👁)(i.e. don't treat them).",
+        faSource: "The illness quickly causes vomiting in everyone who gets it, however there is a {}% chance that someone who don't have the illness will be vomiting too (false alarm).",
+        brSource: "This is a new condition, so it's unclear what percentage of people are affected.",
+
+        br: gameState.trueBR,
+        fa: gameState.far,
+        icons: {
+            testPos: '🤮',
+            testNeg: '🙂',
+            decisionPos: '💉',
+            decisionNeg: '👁',
+            decisionUnknown: '❓',
+            truthPos: '🦠',
+            truthNeg: '',
+            correct: '👍',
+            incorrect: '❌',
+        },
+        trials: trials,
+    },
+    methods: {
+        choosePos: function() {
+            this.trials[this.currentPatient].decision = 'pos';
+            this.currentPatient += 1;
+        },
+        chooseNeg: function() {
+            this.trials[this.currentPatient].decision = 'neg';
+            this.currentPatient += 1;
+        }
+    },
+    computed: {
+        // alex here
+        debugText: function() {
+            return this.debug.replace('{br}', (this.br).toPrecision(2))
+        }, //alex end
+        faText: function() {
+            return this.faSource.replace('{}', (100 * this.fa).toPrecision(2))
+        },
+        brText: function() {
+            return this.brSource.replace('{}', (100 * this.br).toPrecision(2))
+        },
+        testIcon: function() {
+            return this.trials.map((trial) => {
+                if (this.currentPatient < trial.patient)
+                    return '';
+                return trial.test === 'pos' ? this.icons.testPos : this.icons.testNeg;
+            });
+        },
+        decisionIcon: function() {
+            return this.trials.map((trial) => {
+                if (this.currentPatient < trial.patient)
+                    return '';
+                return {
+                    pos: this.icons.decisionPos,
+                    neg: this.icons.decisionNeg,
+                    unknown: this.icons.decisionUnknown,
+                }[trial.decision];
+            });
+        },
+        bayesIcon: function() {
+            return this.trials.map((trial) => {
+                if (this.currentPatient <= trial.patient)
+                    return '';
+                return {
+                    pos: this.icons.decisionPos,
+                    neg: this.icons.decisionNeg,
+                }[trial.bayes];
+            });
+        },
+        truthIcon: function() {
+            return this.trials.map((trial) => {
+                if (this.currentPatient <= trial.patient)
+                    return '';
+                return {
+                    pos: this.icons.truthPos,
+                    neg: this.icons.truthNeg,
+                }[trial.truth];
+            });
+        },
+        correctIcon: function() {
+            return this.trials.map((trial) => {
+                if (this.currentPatient <= trial.patient)
+                    return '';
+                return trial.truth === trial.decision ? this.icons.correct : this.icons.incorrect;
+            });
+        },
+        bayesCorrectIcon: function() {
+            return this.trials.map((trial) => {
+                if (this.currentPatient <= trial.patient)
+                    return '';
+                return trial.truth === trial.bayes ? this.icons.correct : this.icons.incorrect;
+            });
+        }
+    }
+})
+
+initGameState();
+
+let trials2 = new Array(30);
+
+for (let i = 0; i < trials2.length; i++) {
+    let t = getPatientStatus();
+    let t2 = getTestResult(t);
+
+    trials2[i] = {
+        patient: i,
+        truth: t,
+        test: t2,
+        decision: (t2 === 'neg' ? 'na' : 'unknown'),
+        bayes: (t2 === 'neg' ? 'na' : getBayesDecision(t2)),
+    };
+
+    bayesObs.nObserved++;
+    if(trials2[i].truth == 'pos') bayesObs.nSick++;
+}
+
+let currentPatient = 0;
+while (trials2[currentPatient].test === 'neg')
+    currentPatient++;
+
+let app2 = new Vue({
+    el: '#scenario-2',
+    data: {
+        currentPatient: currentPatient,
+        text: "You are running a hospital, and a number of patients have begun to come down with an illness. Fortunately, an inexpensive test for the condition is available, unfortunately, it's not always reliable. There is a follow-up test that can be performed, unfortunately it's expensive, and hospital management is discouraging you from using it. (Note: this game differs from the previous one in that it automatically discharges patients with negative test results, so you only need to worry about positive cases.)",
+        faSource: "We can be sure a patient doesn't have the illness if his initial test comes back negative. But, there is also a {}% chance an initial test result will be positive if a patient doesn't have the illness (false alarm).",
+        brSource: "This is a new condition, so it's unclear what percentage of people are affected.",
+
+        br: gameState.trueBR,
+        fa: gameState.far,
+        icons: {
+            testPos: '😡',
+            testNeg: '🙂',
+            decisionPos: '💉',
+            decisionNeg: '🧪',
+            decisionNA: ' ',
+            decisionUnknown: '❓',
+            truthPos: '🦠',
+            truthNeg: '',
+            correct: '👍',
+            incorrect: '❌',
+        },
+        trials: trials2,
+    },
+    methods: {
+        choosePos: function() {
+            this.trials[this.currentPatient].decision = 'pos';
+            do {
+                this.currentPatient += 1;
+            } while (this.trials[this.currentPatient].test === 'neg' && this.currentPatient < this.trials.length);
+        },
+        chooseNeg: function() {
+            this.trials[this.currentPatient].decision = 'neg';
+            do {
+                this.currentPatient += 1;
+            } while (this.trials[this.currentPatient].test === 'neg' && this.currentPatient < this.trials.length);
+        }
+    },
+    computed: {
+        // alex here
+        debugText: function() {
+            return this.debug.replace('{br}', (this.br).toPrecision(2))
+        }, //alex end
+        faText: function() {
+            return this.faSource.replace('{}', (100 * this.fa).toPrecision(2))
+        },
+        brText: function() {
+            return this.brSource.replace('{}', (100 * this.br).toPrecision(2))
+        },
+        testIcon: function() {
+            return this.trials.map((trial) => {
+                if (this.currentPatient < trial.patient)
+                    return '';
+                return trial.test === 'pos' ? this.icons.testPos : this.icons.testNeg;
+            });
+        },
+        decisionIcon: function() {
+            return this.trials.map((trial) => {
+                if (this.currentPatient < trial.patient)
+                    return '';
+                return {
+                    pos: this.icons.decisionPos,
+                    neg: this.icons.decisionNeg,
+                    unknown: this.icons.decisionUnknown,
+                    na: this.icons.decisionNA,
+                }[trial.decision];
+            });
+        },
+        bayesIcon: function() {
+            return this.trials.map((trial) => {
+                if (this.currentPatient <= trial.patient)
+                    return '';
+                return {
+                    pos: this.icons.decisionPos,
+                    neg: this.icons.decisionNeg,
+                }[trial.bayes];
+            });
+        },
+        truthIcon: function() {
+            return this.trials.map((trial) => {
+                if (this.currentPatient <= trial.patient)
+                    return '';
+                return {
+                    pos: this.icons.truthPos,
+                    neg: this.icons.truthNeg,
+                }[trial.truth];
+            });
+        },
+        correctIcon: function() {
+            return this.trials.map((trial) => {
+                if (this.currentPatient <= trial.patient)
+                    return '';
+                if (trial.test === 'neg')
+                    return this.icons.correct;
+                return trial.truth === trial.decision ? this.icons.correct : this.icons.incorrect;
+            });
+        },
+        bayesCorrectIcon: function() {
+            return this.trials.map((trial) => {
+                if (this.currentPatient <= trial.patient)
+                    return '';
+                if (trial.test === 'neg')
+                    return this.icons.correct;
+                return trial.truth === trial.bayes ? this.icons.correct : this.icons.incorrect;
+            });
+        }
+    }
+})
+</script>
+</html>

@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta charset="utf-8">
+    <title>Game</title>
+    <!--link rel="stylesheet" href="style.css"-->
+    <style>
+
+body {
+    font-family: sans-serif ;
+    line-height: 110% ;
+}
+
+#main {
+    max-width: 800px ;
+    background-color: lightblue ;
+    margin: auto ;
+    padding: 20px ;
+}
+
+.choice {
+    font-weight: bold ;
+}
+
+.outcome,
+.rational {
+    display: none ;
+}
+
+.round {
+    min-height: 80px ;
+    margin: 20px ;
+    background-color: white ;
+    padding: 20px ;
+    line-height: 2;
+}
+
+.round[data-choice] .action {
+    display: none ;
+}
+
+.choice,
+.chance {
+    display: none ;
+}
+
+.round[data-choice="1"] .choice[data-choice="1"],
+.round[data-choice="2"] .choice[data-choice="2"] {
+    display: block ;
+}
+
+.round.show-results[data-choice="1"][data-correct="1"] .outcome[data-choice="1"][data-correct="1"],
+.round.show-results[data-choice="2"][data-correct="2"] .outcome[data-choice="2"][data-correct="1"] {
+    display: block ;
+}
+
+.round.show-results[data-choice="1"][data-correct="2"] .outcome[data-choice="1"][data-correct="0"],
+.round.show-results[data-choice="2"][data-correct="1"] .outcome[data-choice="2"][data-correct="0"] {
+    display: block ;
+}
+
+.round.show-results[data-rational="2"][data-correct="1"] .rational[data-choice="2"],
+.round.show-results[data-rational="1"][data-correct="2"] .rational[data-choice="1"] {
+    display: block ;
+}
+
+.round.show-results .chance {
+    display: block ;
+}
+
+.emoji {
+    font-size: 200% ;
+}
+
+    </style>
+    <script>
+function ready(fn) {
+  if (document.readyState != 'loading'){
+    fn();
+  } else {
+    document.addEventListener('DOMContentLoaded', fn);
+  }
+}
+
+ready(function() {
+    let scenarios = [
+        // {   // scenario template
+        //     text: "",
+        //     faText: "", // false alarm rate and explanation
+        //     brText: "", // base rate and explanation
+        //     br: parseInt(Math.random() * 100),
+        //     fa: parseInt(Math.random() * 100),
+        //     prob: 0,
+        //     correct: 1,
+        //     rational: 1,
+        //     action1: "", // assume TP
+        //     action2: "", // assume FP
+        //     action1past: "", 
+        //     action2past: "", 
+        //     action1correct: "",
+        //     action2correct: "",
+        //     action1incorrect: "",
+        //     action2incorrect: "",
+        //     action1rational: "that he <strong>was</strong> ", // However it was actually more likely
+        //     action2rational: "that he <strong>was not</strong> ", // However it was actually more likely
+        //     probText: "", // there was a <x>% chance ...
+        // },
+        {   // scenario 0
+            text: "I offer you the chance to play a game in which you may win money. The game is that I roll a many-sided die and if one of your lucky numbers come up, you will win and I pay you. If the number that comes up is not one of your lucky numbers, I will win and you pay me. Want to play?",
+            faText: '',
+            brText: 'There is a {}% chance that one of your lucky numbers will come up',
+            costText:"If you win, I will pay you ${hAnd1Reward}. If I win, you will pay me ${notHAnd1Cost}",
+            br: 0,
+            fa: 1,
+            prob: 0,
+            correct: 2,
+            rational: 2,
+            action1: "Play",
+            action2: "Don't Play",
+            action1past: "You played the game",
+            action2past: "You did not play the game",
+            action1correct: "Good move, you made ${}",
+            action2correct: "Good move, you avoided losing ${}",
+            action1incorrect: "and lost ${}",
+            action2incorrect: "and missed out on making ${}",
+            action1rational: "it <strong>was</strong> a <strong>rational</strong> game to play",
+            action2rational: "it <strong>was</strong> an <strong>irrational</strong> game to play",
+            probText: "that you would win",
+
+            title: "Nice Dice",
+            graphic: "🎲",
+
+            eText: "The expected reward of playing was ${eof1}. (Negative values are an expected loss).",
+
+            //new
+            rewardOfHAndAction1: 3,
+            costOfHAndAction2: 0,
+            costOfNotHAndAction1: 2,
+            rewardOfNotHAndAction2: 0,
+            asWinnings: true,
+        
+            n: 1,
+            // calculated later
+            EOfAction1: 0,
+            EOfAction2: 0,
+        },
+        {   // scenario 1
+            text: "I've got a lot of money at the moment, so my risk aversion has dropped right off. I offer you the chance to play the same game as above except with higher stakes. If one of your lucky numbers come up, I pay you. If the number that comes up is not one of your lucky numbers, you pay me. Feeling lucky?",
+            faText: '',
+            brText: 'There is a {}% chance that one of your lucky numbers will come up.',
+            costText:"If you win, I will pay you ${hAnd1Reward}. If I win, you will pay me ${notHAnd1Cost}.",
+            br: 0,
+            fa: 1,
+            prob: 0,
+            correct: 2,
+            rational: 2,
+            action1: "Play",
+            action2: "Don't Play",
+            action1past: "You played the game",
+            action2past: "You did not play the game",
+            action1correct: "Good move, you made ${}. What are you going to spend it on?",
+            action2correct: "Good move, you avoided losing ${}",
+            action1incorrect: "and lost ${}",
+            action2incorrect: "and missed out on making ${}",
+            action1rational: "it <strong>was</strong> a <strong>rational</strong> game to play",
+            action2rational: "it <strong>was</strong> an <strong>irrational</strong> game to play",
+            probText: "that you would win.",
+            
+            graphic: "🎲 🎲",
+            title: "Dicey Dice",
+            eText: "The expected reward of playing was ${eof1}. (Negative values are an expected loss).",
+
+            //new
+            rewardOfHAndAction1: 600,
+            costOfHAndAction2: 0,
+            costOfNotHAndAction1: 400,
+            rewardOfNotHAndAction2: 0,
+            asWinnings: true,
+        
+            n: 1,
+            // calculated later
+            EOfAction1: 0,
+            EOfAction2: 0,
+        },
+        {    
+            // scenario 1
+            text: "We have {n} patients who have tested positive for a condition that will make them very sick. However, the test is not 100% accurate. If a patient has the condition, and receives treatment, it will prevent her from becoming sick, and with zero side effects. However, if the patient doesn't have the condition, treating her will make her sick instead. Should we treat our patients, or send them home to rest?",
+            
+            brText: 'It turns out that {}% of the population that represent our patients, prior to testing positive, have the condition',
+            faText: 'The test always correctly diagnoses people with the condition, however it mis-diagnoses people without the condition {}% of the time.',
+            costText: "If the patient does not have the condition, but you treat her, she will be out-of-action for {notHAnd1Cost} days. <br>If the patient has the condition, but you don't treat her, she will be out-of-action for {hAnd2Cost} days.",
+
+            rewardOfHAndAction1: 0, 
+            costOfHAndAction2: 8, // cost of doing action 2, OR missed rewards of not doing action 1 in the case that H is true
+            costOfNotHAndAction1: 3, // cost of doing action 1, OR missed rewards of not doing action 2 in the case that ~H is true
+            rewardOfNotHAndAction2: 0, 
+            n: 100,
+            asWinnings: false,
+            
+            title: "Triage",
+            graphic: "👩‍⚕️ 💉",
+            action1: "Treat them",
+            action2: "Discharge them (Don't Treat)",
+            action1past: "You chose to treat",
+            action2past: "You chose to discharge",
+            action1correct: "Choosing to treat minimized the days off. There were {} fewer days off than if you had discharged",
+            action2correct: "Choosing to discharge collectively saved your patients from {} days in bed compared to choosing to treat.",
+            action1incorrect: "...but this resulted in {} more days off than than if you had discharged",
+            action2incorrect: "...but treatment would have had a better overall effect. It would have saved {} sick days",
+            action1rational: "it was more likely that <strong>treatment</strong> was the optimal strategy. (i.e., Treatment would have been the <i>rational</i> decision.)",
+            action2rational: "it was more likely that <strong>discharge</strong> was the optimal strategy. (i.e., Discharge would have been the <i>rational</i> decision.)",
+            probText: "that any one of our patients had the condition",
+
+            eText: "Per patient, the expected cost of treating was {eof1} days, and the expected cost of discharging was {eof2} days",
+
+            br: 0,
+            fa: 0,
+            prob: 0,
+            EOfAction1: 0,
+            EOfAction2: 0,
+            correct: 1,
+            rational: 2,
+
+            action1Cost: 0,
+            action2Cost: 0,
+        },
+        {   // scenario 2
+            text: "You have captured {n} women suspected of being British spies. Each one was captured independently of one another. There is a bounty for British spies, so you subject them to a lie detector test to which they each test positive. You are excited to collect your bounty, however, you know that the lie detector can give false positves. There are financial penalities for claiming bounties on innocent targets. If you turn them over, each woman will be thoroughly investigated to determine if she is truly a spy or not.",
+            faText: 'The lie detector always catches spies, however it falsely diagnoses innocent people as spies {}% of the time.',
+            brText: 'It turns out that {}% of people who fit the profile of those you captured are British spies',
+            costText:"The bounty for each true spy you turn in is ${hAnd1Reward}. The penalty for handing in innocent people is ${notHAnd1Cost}",
+            br: 0,
+            fa: 0,
+            prob: 0,
+            correct: 2,
+            rational: 2,
+            action1: "Hand them in",
+            action2: "Release them",
+            action1past: "You handed them in",
+            action2past: "You released them",
+            action1correct: "Good move, you made ${}",
+            action2correct: "Good move, you saved ${}",
+            action1incorrect: "and lost ${}",
+            action2incorrect: "and missed out on making ${}",
+            action1rational: "it was the case that turning them in <strong>was</strong> the rational move",
+            action2rational: "it was the case that turning them in <strong>was not</strong> the rational move",
+            probText: "that any one of these women was a spy",
+
+            eText: "The expected value of turning in each woman was ${eof1}. (Negative values are an expected loss)",
+
+            title: "Bounty on the Brits",
+            graphic: "🕵️‍♀️ 🇬🇧",
+            //new
+            rewardOfHAndAction1: 5000,
+            costOfHAndAction2: 0,
+            costOfNotHAndAction1: 4000,
+            rewardOfNotHAndAction2: 0,
+            asWinnings: true,
+            n: 10,
+            // calculated later
+            EOfAction1: 0,
+            EOfAction2: 0,
+        },
+        {   // scenario 4.2
+            text: "El-Nino are weather patterns that can lead to flooding across Australia, whereas La-Nina produces reduced rainfall. It's the end of the year, and it has not flooded all year. You're arguing with a friend about whether it's an El-Nino, or La-Nina year. She offers to make you a bet.",
+            faText: "It never floods during La-Nina years, however {}% of El-Nino years don't experience flooding either.",
+            brText: "It turns out that {}% of years are La-Nina years.",
+            costText:"She wants to bet that it is a El-Nino year. If she is right, you will pay her <stong>$</strong>{notHAnd1Cost}. If you are right (it is a La-Nina year), you will win <stong>$</strong>{hAnd1Reward}",
+            br: 0,
+            fa: 0,
+            prob: 0,
+            correct: 1,
+            rational: 1,
+            action1: "Accept the bet", // assume situation is True Positive
+            action2: "Refuse the bet", // assume situation is False Alarm
+            action1past: "You took the bet",
+            action2past: "You refused the bet",
+            action1correct: "It was an La-Nina year",
+            action2correct: "It was a El-Nino year",
+            action1incorrect: "but it was a La-Nina year",
+            action2incorrect: "but it was an El-Nino year",
+            action1rational: "it <stong>was</stong> rational to bet that it was an La-Nina year",
+            action2rational: "it <stong>was not</stong> rational to take the bet",
+            probText: "that is was an La-Nina year",
+
+            title: "Weather to Bet or Not",
+            graphic: "⛅ 🌧️",
+            //new
+            rewardOfHAndAction1: 20,
+            costOfHAndAction2: 0,
+            costOfNotHAndAction1: 15,
+            rewardOfNotHAndAction2: 0,
+            asWinnings: true,
+            n: 1,
+            // calculated later
+            EOfAction1: 0,
+            EOfAction2: 0,
+
+            eText: "The bet had an expected value of <strong>$</strong>{eof1} (negative values are an expected loss.)",
+
+        },          
+    ];
+
+    let runif = function(lower, upper) {
+        let diff = upper-lower;
+        return Math.random() * diff + lower;
+    }
+
+    let getCost = function(outcome, action, sc) {
+        if(outcome == 1){
+            if(action == 1) {
+                return -sc.rewardOfHAndAction1;
+            } else if (action == 2){
+                return sc.costOfHAndAction2;
+            }
+        }
+        if(outcome == 2){
+            if(action == 1) {
+                return sc.costOfNotHAndAction1;
+            } else if (action == 2){
+                return -sc.rewardOfNotHAndAction2;
+            }
+        } else {
+            console.log('error');
+        }
+    }
+
+    for (let scenario of scenarios) {
+        MIN_FALSE_ALARM_RATE = 0.01;
+        MAX_FALSE_ALARM_RATE = 0.2;
+
+        // generate a false alarm rate, P(E|~H)
+
+        let pEgnH = (parseInt(scenario.fa) != 0) ? parseInt(scenario.fa) : parseFloat(runif(MIN_FALSE_ALARM_RATE, MAX_FALSE_ALARM_RATE).toPrecision(2));
+        let pHgE = parseFloat(runif(.01,.99).toPrecision(2));
+
+        //************
+        // if  P(H|E) = A,
+        // then P(H) = P(H|E) x P(E|~H) / (1 - P(H|E) + P(H|E) x P(E|~H))
+        // 
+        // Use this relationship set P(H) for a desired P(H|E)
+        //************
+        // Generate base rate, P(H)
+        let pH = parseFloat((pHgE * pEgnH / (1 - pHgE + pHgE * pEgnH)).toPrecision(2));
+        pHgE = pH / (pH + pEgnH*(1-pH));
+
+        // calculate P(E), assumming miss-rate is zero
+        let pE = pH + (1-pH)*pEgnH;
+
+        // calculate actual cost of action 1 and 2 for n trials 
+        let acc1 = 0;
+        let acc2 = 0;
+
+        let outcomes = new Array(scenario.n);
+
+        for (let i = 0; i < outcomes.length; i++){
+            outcomes[i] = (pHgE > Math.random()) ? 1 : 2;
+        }
+        for (let i=0; i < outcomes.length; i++){
+            acc1 += getCost(outcomes[i],1,scenario);
+            acc2 += getCost(outcomes[i],2,scenario);
+        }
+
+
+        scenario.action1Cost = acc1;
+        scenario.action2Cost = acc2;
+
+        scenario.br = pH;
+        scenario.fa = pEgnH;
+        scenario.prob = pHgE;
+        scenario.EOfAction1 = -scenario.rewardOfHAndAction1 * pHgE + scenario.costOfNotHAndAction1 * (1-pHgE);
+        scenario.EOfAction2 = scenario.costOfHAndAction2 * pHgE - scenario.rewardOfNotHAndAction2 * (1-pHgE); // hand2 * ph
+        scenario.correct = (scenario.action2Cost > scenario.action1Cost) ? 1 : 2;
+        scenario.rational = (scenario.EOfAction2 > scenario.EOfAction1) ? 1 : 2;
+
+        //scenario.gain = acc2 - acc1;
+    }
+
+    let rounds = document.querySelectorAll('.round');
+    for (let i = 0; i < rounds.length && i < scenarios.length; i++) {
+        let round = rounds[i];
+        let scenario = scenarios[i];
+
+        round.dataset.correct = scenario.correct;
+        round.dataset.rational = scenario.rational;
+
+        if(scenario.asWinnings){
+            scenario.EOfAction1 = -scenario.EOfAction1;
+            scenario.EOfAction2 = -scenario.EOfAction2;    
+        }
+        let format1000 = function(num){
+            return parseInt(num/1000) + ',' + 
+                ((num%1000 < 100) ? '0' : parseInt((num%1000)/100).toString()) +
+                parseInt((num%100)/10).toString() + parseInt(num%10).toString();
+            
+            (num%1000).toString();
+        }
+        let formatIf1000 = function(num){
+            if(num >= Math.abs(1000)){
+                return format1000(num);
+            } else return num;
+        }
+
+        let formattedCostText = '';
+        let cost = Math.abs(scenario.action1Cost - scenario.action2Cost);
+        if(cost >= 1000){
+            formattedCostText = format1000(cost);
+        }else{
+            formattedCostText = cost;
+        }
+
+        let content = `
+        
+        <h4><span class="emoji">${scenario.graphic}</span> ${scenario.title}</h4>
+        <p>${ scenario.text.replace('{n}', '<strong>'+(scenario.n)+'</strong>') }</p>
+        <p>${ scenario.faText.replace('{}', '<strong>' + (100 * scenario.fa).toPrecision(2) + '</strong>') }</p>
+        <p>${ scenario.brText.replace('{}', '<strong>' + (100 * scenario.br).toPrecision(2) + '</strong>') }.</p>
+        <p>${ scenario.costText
+            .replace('{hAnd1Reward}', '<strong>' + (formatIf1000(scenario.rewardOfHAndAction1)) + '</strong>')
+            .replace('{hAnd2Cost}', '<strong>' + (formatIf1000(scenario.costOfHAndAction2)) + '</strong>')
+            .replace('{notHAnd1Cost}', '<strong>' + (formatIf1000(scenario.costOfNotHAndAction1)) + '</strong>')
+            .replace('{notHAnd2Reward}', '<strong>' + (formatIf1000(scenario.rewardOfNotHAndAction2)) + '</strong>') }.</p>
+   
+        <button class="action" data-choice="1" data-scenario="${ i }">${ scenario.action1 }</button>
+        <button class="action" data-choice="2" data-scenario="${ i }">${ scenario.action2 }</button>
+        <p class="choice" data-choice="1">${ scenario.action1past }</p>
+        <p class="choice" data-choice="2">${ scenario.action2past }</p>
+        <p class="outcome" data-choice="1" data-correct="1"><span class="emoji">👍</span> ${ scenario.action1correct
+            .replace('{}', '<strong>' + (formattedCostText) + '</strong>') }</p>
+        <p class="outcome" data-choice="2" data-correct="1"><span class="emoji">👍</span> ${ scenario.action2correct
+            .replace('{}', '<strong>' + (formattedCostText) + '</strong>') }</p>
+        <p class="outcome" data-choice="1" data-correct="0"><span class="emoji">😞</span> ${ scenario.action1incorrect
+            .replace('{}', '<strong>' + (formattedCostText) + '</strong>') }</p>
+        <p class="outcome" data-choice="2" data-correct="0"><span class="emoji">😞</span> ${ scenario.action2incorrect
+            .replace('{}', '<strong>' + (formattedCostText) + '</strong>') }</p>
+        <p class="rational" data-choice="1"><span class="emoji">🤔</span> However ${ scenario.action1rational }</p>
+        <p class="rational" data-choice="2"><span class="emoji">🤔</span> However ${ scenario.action2rational }</p>
+        <p class="chance"><span class="emoji">🧮</span> There was a <strong>${ (100 * scenario.prob).toPrecision(3) }%</strong> chance that ${ scenario.probText }. <br>${
+            scenario.eText
+            .replace('{eof1}','<strong>'+
+                ((scenario.EOfAction1 >= 1000 ) ? formatIf1000(scenario.EOfAction1) : scenario.EOfAction1.toPrecision(3))+'</strong>')
+            .replace('{eof2}','<strong>'+
+                ((scenario.EOfAction2 >= 1000 ) ? formatIf1000(scenario.EOfAction2) : scenario.EOfAction2.toPrecision(3))+'</strong>')}</p>
+        `;
+
+        round.innerHTML = content;
+    }
+
+    let nAnswered = 0;
+
+    let actionHandler = function(event) {
+        let button = event.target;
+        let scenarioNo = parseInt(button.dataset.scenario);
+        let choice = parseInt(button.dataset.choice);
+        rounds[scenarioNo].dataset.choice = choice;
+        nAnswered++;
+        if (nAnswered === rounds.length)
+            showAnswers()
+    };
+
+    let showAnswers = function() {
+        for (let round of rounds)
+            round.classList.add('show-results');
+    };
+
+    let actions = document.querySelectorAll('.action');
+    for (let action of actions)
+        action.addEventListener('click', actionHandler);
+
+});
+
+    </script>
+</head>
+<body>
+    <div id="main">
+        <h1>Week 5 Fair Five</h1>
+        <div class="round" ></div>
+        <div class="round" ></div>
+        <div class="round" ></div>
+        <div class="round" ></div>
+        <div class="round" ></div>
+
+    </div>
+
+
+</body></html>
