@@ -1,4 +1,4 @@
-# PSY115
+# Decision-Making-Webgames 
 
 Here you'll find webgames for teaching Bayesian reasoning and rational betting.
 
